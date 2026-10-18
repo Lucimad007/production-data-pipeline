@@ -1,0 +1,7 @@
+order_id,sku,quantity,unit_price
+A-1001,WIDGET-1,2,12.50
+A-1002,GADGET-9,1,40.00
+A-1003,WIDGET-1,0,12.50
+A-1004,BOLT-3,abc,1.25
+A-1005,BOLT-3,4,1.25
+,GADGET-9,2,40.00
