@@ -26,8 +26,17 @@ python -m pipeline.youtube --query "data pipeline" --max-results 5
 
 Results land in `data/output/youtube.db`.
 
+To load the same rows into Snowflake, fill in the `SNOWFLAKE_*` values in `.env`, install dependencies, and choose that destination:
+
+```powershell
+pip install -e .
+python -m pipeline.youtube --destination snowflake --query "data pipeline" --max-results 5
+```
+
+The job opens a Snowpark session, creates `YOUTUBE_VIDEOS`, and merges a DataFrame on `VIDEO_ID`.
+
 ## Test
 
 ```bash
-python -m unittest tests.test_pipeline tests.test_youtube
+python -m unittest tests.test_pipeline tests.test_youtube tests.test_snowflake
 ```
