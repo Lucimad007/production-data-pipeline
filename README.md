@@ -35,8 +35,30 @@ python -m pipeline.youtube --destination snowflake --query "data pipeline" --max
 
 The job opens a Snowpark session, creates `YOUTUBE_VIDEOS`, and merges a DataFrame on `VIDEO_ID`.
 
+## Channel video statistics
+
+Collect every public upload for a channel, with duration and lifetime view, like, and comment counts. The channel defaults to Alex Hormozi:
+
+```powershell
+python -m pipeline.video_stats
+```
+
+Limit the run to the newest videos, or choose another handle:
+
+```powershell
+python -m pipeline.video_stats --channel AlexHormozi --max-videos 50
+```
+
+Rows are upserted into the `video_stats` table in `data/output/youtube.db`, so rerunning refreshes the counts. To load the same rows into Snowflake, fill in the `SNOWFLAKE_*` values and use:
+
+```powershell
+python -m pipeline.video_stats --destination snowflake
+```
+
+The Snowflake table is `YOUTUBE_VIDEO_STATS`.
+
 ## Test
 
 ```bash
-python -m unittest tests.test_pipeline tests.test_youtube tests.test_snowflake
+python -m unittest tests.test_pipeline tests.test_youtube tests.test_snowflake tests.test_video_stats
 ```

@@ -1,7 +1,17 @@
 import os
 import unittest
 
-from pipeline.snowflake_load import COLUMNS, SnowflakeConfig, load_videos, video_rows
+from pipeline.snowflake_load import (
+    COLUMNS,
+    VIDEO_STATS_COLUMNS,
+    VIDEO_STATS_TABLE,
+    SnowflakeConfig,
+    load_video_stats,
+    load_videos,
+    video_rows,
+    video_stat_rows,
+)
+from pipeline.video_stats import VideoStats
 from pipeline.youtube import Video
 
 
@@ -61,6 +71,50 @@ class SnowflakeLoadTest(unittest.TestCase):
         self.assertIn("CREATE TABLE IF NOT EXISTS YOUTUBE_VIDEOS", session.statements[0])
         self.assertEqual(session.created, (video_rows(videos), COLUMNS))
         self.assertEqual(session.table_name, "YOUTUBE_VIDEOS")
+        self.assertEqual(len(merged), 1)
+
+    def test_stat_rows_keep_video_fields(self) -> None:
+        stats = [
+            VideoStats(
+                "abc",
+                "Title",
+                "2026-01-01T00:00:00Z",
+                "PT26M10S",
+                100,
+                10,
+                2,
+            )
+        ]
+        self.assertEqual(
+            video_stat_rows(stats),
+            [("abc", "Title", "2026-01-01T00:00:00Z", "PT26M10S", 100, 10, 2)],
+        )
+
+    def test_load_video_stats_creates_dataframe_and_merges(self) -> None:
+        session = FakeSession()
+        merged: list[tuple] = []
+        stats = [
+            VideoStats(
+                "abc",
+                "Title",
+                "2026-01-01T00:00:00Z",
+                "PT26M10S",
+                100,
+                10,
+                2,
+            )
+        ]
+
+        stored = load_video_stats(
+            stats, session, merge=lambda target, source: merged.append((target, source))
+        )
+
+        self.assertEqual(stored, 1)
+        self.assertIn(
+            "CREATE TABLE IF NOT EXISTS YOUTUBE_VIDEO_STATS", session.statements[0]
+        )
+        self.assertEqual(session.created, (video_stat_rows(stats), VIDEO_STATS_COLUMNS))
+        self.assertEqual(session.table_name, VIDEO_STATS_TABLE)
         self.assertEqual(len(merged), 1)
 
 
