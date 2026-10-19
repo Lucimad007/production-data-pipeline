@@ -91,6 +91,18 @@ def run(query: str, database: Path, api_key: str, max_results: int = 5) -> int:
     return load_videos(videos, database)
 
 
+def run_snowflake(query: str, api_key: str, max_results: int = 5) -> int:
+    from pipeline.snowflake_load import SnowflakeConfig, load_videos as load_snowflake, session_from_config
+
+    payload = extract_search(query, api_key, max_results)
+    videos = transform_search(payload)
+    session = session_from_config(SnowflakeConfig.from_env())
+    try:
+        return load_snowflake(videos, session)
+    finally:
+        session.close()
+
+
 def load_env(path: Path) -> None:
     """Load KEY=VALUE lines into the process environment. Existing vars win."""
     if not path.exists():
@@ -111,12 +123,19 @@ def main() -> None:
     parser.add_argument("--query", default="data pipeline")
     parser.add_argument("--max-results", type=int, default=5)
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
+    parser.add_argument("--destination", choices=("sqlite", "snowflake"), default="sqlite")
     args = parser.parse_args()
 
     load_env(ROOT / ".env")
     api_key = os.environ.get("YOUTUBE_API_KEY", "").strip()
     if not api_key:
         raise SystemExit("Set YOUTUBE_API_KEY to your YouTube Data API v3 key.")
+
+    if args.destination == "snowflake":
+        stored = run_snowflake(args.query, api_key, args.max_results)
+        print(f"query={args.query} stored={stored}")
+        print("destination=snowflake table=YOUTUBE_VIDEOS")
+        return
 
     stored = run(args.query, args.database, api_key, args.max_results)
     print(f"query={args.query} stored={stored}")
