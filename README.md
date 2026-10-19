@@ -16,8 +16,18 @@ Optional paths:
 python -m pipeline.run --source data/sample_orders.csv --database data/output/orders.db
 ```
 
+## YouTube search
+
+Uses a YouTube Data API v3 key from `.env` (see `.env.example`). `.env` is gitignored.
+
+```powershell
+python -m pipeline.youtube --query "data pipeline" --max-results 5
+```
+
+Results land in `data/output/youtube.db`.
+
 ## Test
 
 ```bash
-python -m unittest tests.test_pipeline
+python -m unittest tests.test_pipeline tests.test_youtube
 ```
