@@ -17,6 +17,11 @@ def test_build_command() -> None:
     assert args.command == "build"
 
 
+def test_dashboard_command() -> None:
+    args = build_parser().parse_args(["dashboard"])
+    assert args.command == "dashboard"
+
+
 def test_ingest_accepts_overrides() -> None:
     args = build_parser().parse_args(
         [
