@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 import structlog
 
 from breakout.config import Settings, get_settings
-from breakout.storage import Lakehouse, RawLanding
-from breakout.youtube import QuotaExceeded, YouTubeClient, YouTubeError
-
-log = structlog.get_logger(__name__)
+from breakout.pipeline import (
+    bronze_counts,
+    build_models,
+    ingest_channel,
+    latest_snapshot,
+    quota_status,
+)
+from breakout.youtube import QuotaExceeded, YouTubeError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,69 +49,31 @@ def run_ingest(args: argparse.Namespace, settings: Settings) -> int:
         settings.max_comments_per_video if args.max_comments is None else args.max_comments
     )
 
-    with YouTubeClient(settings.youtube_api_key, settings=settings) as client:
-        collection = client.collect(
-            channel,
-            max_videos=max_videos,
-            comment_video_limit=comment_videos,
-            max_comments_per_video=max_comments,
-        )
+    result = ingest_channel(
+        settings,
+        channel,
+        max_videos=max_videos,
+        comment_videos=comment_videos,
+        max_comments=max_comments,
+    )
 
-    landing = RawLanding(settings.raw_dir)
-    for envelope in collection.envelopes:
-        landing.write(envelope)
-
-    with Lakehouse(settings) as lake:
-        lake.write_api_responses(collection.envelopes)
-        written = lake.write_collection(collection)
-        totals = lake.table_counts()
-
-    print(f"channel={collection.channel.title} id={collection.channel.channel_id}")
-    print(f"videos={len(collection.videos)} comments={len(collection.comments)}")
-    print(f"quota_units={collection.quota_used}")
-    print("written=" + " ".join(f"{key}:{value}" for key, value in written.items()))
-    print("bronze=" + " ".join(f"{key}:{value}" for key, value in totals.items()))
+    print(f"channel={result.channel_title} id={result.channel_id}")
+    print(f"videos={result.videos} comments={result.comments}")
+    print(f"quota_units={result.quota_used}")
+    print(f"raw_files={result.raw_files}")
+    print("written=" + " ".join(f"{key}:{value}" for key, value in result.written.items()))
+    print("bronze=" + " ".join(f"{key}:{value}" for key, value in result.bronze.items()))
     return 0
 
 
-def run_build(settings: Settings) -> int:
-    """Run dbt with absolute lakehouse paths.
-
-    DuckLake stores the data path in its catalog and rejects a relative path
-    that resolves to the same directory but does not match the stored string.
-    The CLI is the supported entry point because it normalizes the paths first.
-    """
-    os.environ["BREAKOUT_DUCKDB"] = str(settings.duckdb_path.resolve()).replace("\\", "/")
-    os.environ["BREAKOUT_DUCKLAKE_CATALOG"] = str(
-        settings.ducklake_catalog.resolve()
-    ).replace("\\", "/")
-    os.environ["BREAKOUT_DUCKLAKE_DATA"] = str(settings.ducklake_data.resolve()).replace(
-        "\\", "/"
-    )
-
-    from dbt.cli.main import dbtRunner
-
-    result = dbtRunner().invoke(
-        [
-            "build",
-            "--project-dir",
-            str(settings.dbt_project_dir),
-            "--profiles-dir",
-            str(settings.dbt_profiles_dir),
-        ]
-    )
-    return 0 if result.success else 1
-
-
 def run_status(settings: Settings) -> int:
-    with Lakehouse(settings) as lake:
-        totals = lake.table_counts()
-        freshness = lake.query_df(
-            "SELECT MAX(snapshot_at) AS latest_snapshot FROM lake.bronze.video_snapshots"
-        )
+    totals = bronze_counts(settings)
+    latest = latest_snapshot(settings)
+    quota = quota_status(settings)
     print("bronze=" + " ".join(f"{key}:{value}" for key, value in totals.items()))
-    if not freshness.empty and freshness.loc[0, "latest_snapshot"] is not None:
-        print(f"latest_snapshot={freshness.loc[0, 'latest_snapshot']}")
+    print(f"quota={quota.used}/{quota.budget}")
+    if latest:
+        print(f"latest_snapshot={latest}")
     return 0
 
 
@@ -130,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "status":
             return run_status(settings)
         if args.command == "build":
-            return run_build(settings)
+            return 0 if build_models(settings) else 1
     except QuotaExceeded as exc:
         print(f"Quota budget reached: {exc}", file=sys.stderr)
         return 3
