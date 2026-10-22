@@ -9,9 +9,16 @@ uv sync
 uv run breakout ingest --channel AlexHormozi --max-videos 500
 uv run breakout build
 uv run breakout status
+uv run breakout dashboard
 ```
 
-The current build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` snapshot, gold marts for video performance, channel overview, publish timing, topic performance, and snapshot deltas, and a Dagster asset graph with checks and a daily schedule. The dashboard is the next workstream.
+The current build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` snapshot, gold marts for video performance, channel overview, publish timing, topic performance, and snapshot deltas, a Dagster asset graph with checks and a daily schedule, and a Streamlit dashboard.
+
+![Breakout dashboard](docs/assets/dashboard-overview.png)
+
+### Dashboard
+
+`uv run breakout dashboard` opens the Streamlit app. Pages: Overview, Video deep dive, Topics, Timing, and Pipeline health. The app reads the local lakehouse; the screenshot above is a snapshot, not a live feed.
 
 ### Orchestration
 
