@@ -12,6 +12,11 @@ def test_ingest_defaults_are_optional() -> None:
     assert args.max_comments is None
 
 
+def test_build_command() -> None:
+    args = build_parser().parse_args(["build"])
+    assert args.command == "build"
+
+
 def test_ingest_accepts_overrides() -> None:
     args = build_parser().parse_args(
         [

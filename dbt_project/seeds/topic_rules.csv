@@ -1,0 +1,10 @@
+topic,pattern,priority
+money,"money|rich|wealth|income|revenue|profit|million|billion|invest",10
+business,"business|company|entrepreneur|founder|startup|ceo|scale",20
+sales,"sales|sell|selling|offer|pricing|close|closing|deal|customer",30
+marketing,"marketing|ads|advertis|brand|audience|growth|traffic|content",40
+fitness,"fitness|workout|gym|muscle|diet|nutrition|health|weight|body",50
+mindset,"mindset|habit|discipline|motivation|goal|focus|fear|confidence",60
+hiring,"hiring|hire|team|talent|recruit|manager|leadership|culture",70
+operations,"operation|process|system|automation|efficien|productiv",80
+education,"learn|school|college|education|teach|student|study",90

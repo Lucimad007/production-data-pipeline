@@ -1,0 +1,31 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: Immutable API events written by the Breakout ingestion layer.
+    database: lake
+    schema: bronze
+    tables:
+      - name: channels
+        description: One row per channel snapshot.
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: { count: 24, period: hour }
+          error_after: { count: 72, period: hour }
+      - name: videos
+        description: Current video metadata, upserted on video_id.
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: { count: 24, period: hour }
+          error_after: { count: 72, period: hour }
+      - name: video_snapshots
+        description: Append-only view, like, and comment counts.
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: { count: 6, period: hour }
+          error_after: { count: 24, period: hour }
+      - name: comments
+        description: Top-level comments with hashed authors.
+        loaded_at_field: ingested_at
+      - name: api_responses
+        description: Raw API envelopes for replay and audit.

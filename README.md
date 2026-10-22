@@ -1,5 +1,26 @@
 # Production data pipeline
 
+## Breakout: creator growth intelligence (in progress)
+
+Breakout is a local-first lakehouse for public YouTube data. It ingests a channel with quota-aware scheduling, preserves every API response in an immutable raw layer, writes bronze tables to DuckLake, and models creator performance with dbt.
+
+```powershell
+uv sync
+uv run breakout ingest --channel AlexHormozi --max-videos 500
+uv run breakout build
+uv run breakout status
+```
+
+The current build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` snapshot, and gold marts for video performance, channel overview, publish timing, topic performance, and snapshot deltas. Dagster and the dashboard are the next workstreams.
+
+See `docs/2026-flagship-plan.md` for the research brief, architecture, and 14-day plan, and epic #6 for the workstreams.
+
+The legacy sample pipelines below remain runnable.
+
+---
+
+## Legacy: sample orders pipeline
+
 Sample extract, transform, and load job for paid orders.
 
 `data/sample_orders.csv` is the source. The pipeline drops refunds, blank customers, non-positive quantities, and duplicate order ids, then upserts the remaining lines into SQLite at `data/output/orders.db`.

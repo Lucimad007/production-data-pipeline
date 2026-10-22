@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: stg_channels
+    description: Latest channel snapshot, one row per channel.
+    columns:
+      - name: channel_id
+        description: YouTube channel id.
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_videos
+    description: Current video metadata, deduplicated on video_id.
+    columns:
+      - name: video_id
+        description: YouTube video id.
+        tests:
+          - unique
+          - not_null
+      - name: channel_id
+        description: Owning channel id.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_channels')
+                field: channel_id
+              config:
+                severity: warn
+
+  - name: stg_video_snapshots
+    description: Latest statistics snapshot per video.
+    columns:
+      - name: video_id
+        description: YouTube video id.
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_videos')
+                field: video_id
+              config:
+                severity: warn
+
+  - name: stg_comments
+    description: Top-level comments with hashed authors.
+    columns:
+      - name: comment_id
+        description: YouTube comment id.
+        tests:
+          - unique
+          - not_null
+      - name: video_id
+        description: Video the comment belongs to.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_videos')
+                field: video_id
+              config:
+                severity: warn

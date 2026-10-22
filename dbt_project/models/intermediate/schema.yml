@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: int_video_topics
+    description: One keyword-derived topic per video, with an "other" fallback.
+
+  - name: int_video_performance
+    description: >
+      Age-adjusted video performance. The breakout score is a robust z-score
+      of log1p views versus the channel's median for the same age bucket.
+      It is intentionally simple and explainable; a learned model must beat
+      this baseline in a backtest before it replaces it.

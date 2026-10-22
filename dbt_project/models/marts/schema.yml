@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: mart_video_performance
+    description: >
+      One row per video with age-adjusted performance, engagement, topic,
+      publish context, and a breakout label. This is the primary table for
+      the creator overview and video deep dive.
+    columns:
+      - name: video_id
+        description: YouTube video id.
+        tests:
+          - unique
+          - not_null
+      - name: channel_id
+        description: Owning channel id.
+        tests:
+          - not_null
+      - name: breakout_score
+        description: Robust z-score of log1p views versus the channel and age bucket.
+        tests:
+          - not_null
+      - name: performance_label
+        description: Breakout (>= 2), underperformer (<= -1), or typical.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['breakout', 'typical', 'underperformer']
+
+  - name: mart_channel_overview
+    description: One row per channel with aggregate performance and freshness.
+    columns:
+      - name: channel_id
+        description: YouTube channel id.
+        tests:
+          - unique
+          - not_null
+
+  - name: mart_publish_timing
+    description: >
+      Publish day/hour performance cells with at least three videos.
+      Small cells are suppressed to avoid noise.
+
+  - name: mart_topic_performance
+    description: >
+      Topic-level performance with sample size and breakout rate.
+      Small cells are suppressed to avoid noise.
+
+  - name: mart_video_snapshots
+    description: >
+      Snapshot history with view deltas and views per hour. Velocity is null
+      for the first snapshot of a video.
