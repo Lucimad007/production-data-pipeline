@@ -22,6 +22,12 @@ def test_dashboard_command() -> None:
     assert args.command == "dashboard"
 
 
+def test_health_command() -> None:
+    args = build_parser().parse_args(["health", "--json"])
+    assert args.command == "health"
+    assert args.json is True
+
+
 def test_ingest_accepts_overrides() -> None:
     args = build_parser().parse_args(
         [
