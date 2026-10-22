@@ -2,7 +2,7 @@ import sqlite3
 import unittest
 from pathlib import Path
 
-from pipeline.youtube import load_videos, transform_search, Video
+from pipeline.youtube import Video, load_videos, transform_search
 
 ROOT = Path(__file__).resolve().parents[1]
 

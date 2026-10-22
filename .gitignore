@@ -221,3 +221,15 @@ __marimo__/
 
 # Pipeline output
 data/output/
+
+# Breakout local lakehouse
+data/raw/
+data/lake/
+data/*.duckdb
+data/*.duckdb.wal
+data/*.sqlite
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+.pytest_cache/
+.mypy_cache/
