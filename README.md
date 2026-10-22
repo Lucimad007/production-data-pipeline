@@ -11,7 +11,20 @@ uv run breakout build
 uv run breakout status
 ```
 
-The current build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` snapshot, and gold marts for video performance, channel overview, publish timing, topic performance, and snapshot deltas. Dagster and the dashboard are the next workstreams.
+The current build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` snapshot, gold marts for video performance, channel overview, publish timing, topic performance, and snapshot deltas, and a Dagster asset graph with checks and a daily schedule. The dashboard is the next workstream.
+
+### Orchestration
+
+```powershell
+$env:DAGSTER_HOME="$PWD\.dagster_home"
+uv run dagster dev -m breakout.definitions
+```
+
+Open `http://localhost:3000`. The `daily_refresh` job runs ingestion, dbt, and the pipeline health asset at 06:00 UTC. Asset checks cover bronze rows, quota budget, and non-empty marts.
+
+### Backfills
+
+The public API exposes current lifetime statistics only. Re-running ingestion appends a new snapshot, but it cannot reconstruct historical view counts. Backfills apply to dbt models over existing bronze data, not to the source.
 
 See `docs/2026-flagship-plan.md` for the research brief, architecture, and 14-day plan, and epic #6 for the workstreams.
 

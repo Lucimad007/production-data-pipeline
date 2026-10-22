@@ -43,6 +43,9 @@ jobs:
       - name: Smoke the local lakehouse
         run: uv run breakout status
 
+      - name: Validate Dagster definitions
+        run: uv run dagster definitions validate -m breakout.definitions
+
   dbt:
     name: dbt build (fixture)
     runs-on: ubuntu-latest
