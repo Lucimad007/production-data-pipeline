@@ -232,6 +232,7 @@ dbt_project/target/
 dbt_project/dbt_packages/
 dbt_project/logs/
 .tmp/
+.dagster_home/
 .pytest_cache/
 .mypy_cache/
 
