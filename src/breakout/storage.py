@@ -28,7 +28,7 @@ from breakout.contracts import (
     sha256_text,
     utc_now,
 )
-from breakout.youtube import Collection
+from breakout.youtube import Collection, QuarantinedItem
 
 log = structlog.get_logger(__name__)
 
@@ -38,6 +38,7 @@ BRONZE_TABLES = (
     "videos",
     "video_snapshots",
     "comments",
+    "quarantine",
 )
 
 
@@ -175,6 +176,18 @@ class Lakehouse:
                 published_at TIMESTAMP,
                 updated_at TIMESTAMP,
                 parent_id VARCHAR,
+                ingested_at TIMESTAMP
+            )
+            """
+        )
+        self._con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS lake.bronze.quarantine (
+                endpoint VARCHAR,
+                item_index INTEGER,
+                item_id VARCHAR,
+                reason VARCHAR,
+                payload_hash VARCHAR,
                 ingested_at TIMESTAMP
             )
             """
@@ -335,12 +348,34 @@ class Lakehouse:
         )
         return self._upsert("comments", frame, key_columns=["comment_id"])
 
+    def write_quarantine(self, records: list[QuarantinedItem]) -> int:
+        if not records:
+            return 0
+        ingested_at = _naive_utc(utc_now())
+        frame = pd.DataFrame(
+            [
+                {
+                    "endpoint": record.endpoint,
+                    "item_index": record.item_index,
+                    "item_id": record.item_id,
+                    "reason": record.reason,
+                    "payload_hash": record.payload_hash,
+                    "ingested_at": ingested_at,
+                }
+                for record in records
+            ]
+        )
+        return self._upsert(
+            "quarantine", frame, key_columns=["payload_hash", "item_index"]
+        )
+
     def write_collection(self, collection: Collection) -> dict[str, int]:
         return {
             "channels": self.write_channel_snapshot(collection.channel_snapshot),
             "videos": self.write_videos(collection.videos),
             "video_snapshots": self.write_video_snapshots(collection.video_snapshots),
             "comments": self.write_comments(collection.comments),
+            "quarantine": self.write_quarantine(collection.quarantined),
         }
 
     # -- internals ---------------------------------------------------------

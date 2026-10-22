@@ -15,7 +15,7 @@ from breakout.contracts import (
     request_hash,
 )
 from breakout.storage import Lakehouse, RawLanding, response_id
-from breakout.youtube import Collection
+from breakout.youtube import Collection, QuarantinedItem
 
 NOW = datetime(2026, 10, 22, 12, 0, tzinfo=UTC)
 
@@ -121,7 +121,13 @@ def test_lakehouse_writes_are_idempotent(settings) -> None:
         second = lake.write_collection(collection)
         counts = lake.table_counts()
 
-    assert first == {"channels": 1, "videos": 1, "video_snapshots": 1, "comments": 1}
+    assert first == {
+        "channels": 1,
+        "videos": 1,
+        "video_snapshots": 1,
+        "comments": 1,
+        "quarantine": 0,
+    }
     assert second == first
     assert counts == {
         "api_responses": 0,
@@ -129,6 +135,7 @@ def test_lakehouse_writes_are_idempotent(settings) -> None:
         "videos": 1,
         "video_snapshots": 1,
         "comments": 1,
+        "quarantine": 0,
     }
 
 
@@ -157,6 +164,25 @@ def test_lakehouse_upserts_video_and_snapshot(settings) -> None:
     assert video.loc[0, "title"] == "Renamed"
     assert len(snapshot) == 1
     assert int(snapshot.loc[0, "view_count"]) == 500
+
+
+def test_quarantine_is_idempotent(settings) -> None:
+    records = [
+        QuarantinedItem(
+            endpoint="videos",
+            item_index=0,
+            item_id="bad",
+            reason="video payload is missing id or title",
+            payload_hash="hash",
+        )
+    ]
+    with Lakehouse(settings) as lake:
+        assert lake.write_quarantine(records) == 1
+        assert lake.write_quarantine(records) == 1
+        assert lake.table_counts()["quarantine"] == 1
+        frame = lake.query_df("SELECT item_id, reason FROM lake.bronze.quarantine")
+    assert frame.loc[0, "item_id"] == "bad"
+    assert "missing" in frame.loc[0, "reason"]
 
 
 def test_api_responses_dedupe_by_response_id(settings) -> None:

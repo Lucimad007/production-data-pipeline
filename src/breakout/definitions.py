@@ -48,6 +48,7 @@ def ingest(config: IngestConfig) -> MaterializeResult:
             "videos": result.videos,
             "snapshots": result.snapshots,
             "comments": result.comments,
+            "quarantined": result.quarantined,
             "quota_units": result.quota_used,
             "raw_files": result.raw_files,
             "bronze_videos": result.bronze["videos"],

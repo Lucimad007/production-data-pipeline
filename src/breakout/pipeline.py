@@ -17,6 +17,7 @@ class IngestResult:
     videos: int
     snapshots: int
     comments: int
+    quarantined: int
     quota_used: int
     raw_files: int
     written: dict[str, int]
@@ -61,6 +62,7 @@ def ingest_channel(
         videos=len(collection.videos),
         snapshots=len(collection.video_snapshots),
         comments=len(collection.comments),
+        quarantined=len(collection.quarantined),
         quota_used=collection.quota_used,
         raw_files=raw_files,
         written=written,

@@ -214,6 +214,57 @@ def test_fetch_videos_batches_and_builds_snapshots(settings: Settings) -> None:
 
 
 @respx.mock
+def test_fetch_videos_quarantines_malformed_items(settings: Settings) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    video_item("ok"),
+                    {"id": "bad", "snippet": {}},
+                ]
+            },
+        )
+
+    respx.get(VIDEOS_URL).mock(side_effect=handler)
+    client = make_client(settings)
+
+    batch = client.fetch_videos(["ok", "bad"])
+
+    assert [video.video_id for video in batch.videos] == ["ok"]
+    assert len(batch.rejected) == 1
+    assert batch.rejected[0].item_id == "bad"
+    assert "title" in batch.rejected[0].reason
+
+
+@respx.mock
+def test_fetch_videos_tolerates_deleted_video(settings: Settings) -> None:
+    respx.get(VIDEOS_URL).mock(
+        return_value=httpx.Response(200, json={"items": [video_item("a")]})
+    )
+    client = make_client(settings)
+
+    batch = client.fetch_videos(["a", "deleted"])
+
+    assert [video.video_id for video in batch.videos] == ["a"]
+    assert batch.rejected == []
+
+
+@respx.mock
+def test_hidden_counts_are_null_not_zero(settings: Settings) -> None:
+    item = video_item("hidden")
+    item["statistics"] = {"viewCount": "100"}
+    respx.get(VIDEOS_URL).mock(return_value=httpx.Response(200, json={"items": [item]}))
+    client = make_client(settings)
+
+    snapshot = client.fetch_videos(["hidden"]).snapshots[0]
+
+    assert snapshot.view_count == 100
+    assert snapshot.like_count is None
+    assert snapshot.comment_count is None
+
+
+@respx.mock
 def test_comments_disabled_is_not_fatal(settings: Settings) -> None:
     respx.get(COMMENTS_URL).mock(
         return_value=httpx.Response(
