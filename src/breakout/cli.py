@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
+from pathlib import Path
 
 import structlog
 
@@ -33,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("status", help="Show bronze row counts and quota usage")
     sub.add_parser("build", help="Run dbt build against the local lakehouse")
+    sub.add_parser("dashboard", help="Launch the Streamlit dashboard")
 
     return parser
 
@@ -96,6 +99,9 @@ def main(argv: list[str] | None = None) -> int:
             return run_status(settings)
         if args.command == "build":
             return 0 if build_models(settings) else 1
+        if args.command == "dashboard":
+            dashboard = Path(__file__).with_name("dashboard.py")
+            return subprocess.call([sys.executable, "-m", "streamlit", "run", str(dashboard)])
     except QuotaExceeded as exc:
         print(f"Quota budget reached: {exc}", file=sys.stderr)
         return 3
