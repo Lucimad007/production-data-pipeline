@@ -1,0 +1,17 @@
+breakout:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('BREAKOUT_DUCKDB', 'data/breakout.duckdb') }}"
+      extensions:
+        - ducklake
+      attach:
+        - path: "ducklake:sqlite:{{ env_var('BREAKOUT_DUCKLAKE_CATALOG', 'data/breakout_catalog.sqlite') }}"
+          alias: lake
+          is_ducklake: true
+          options:
+            DATA_PATH: "{{ env_var('BREAKOUT_DUCKLAKE_DATA', 'data/lake') }}"
+      database: lake
+      schema: silver
+      threads: 4

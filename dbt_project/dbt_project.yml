@@ -1,0 +1,35 @@
+name: breakout
+version: "1.0.0"
+config-version: 2
+profile: breakout
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+require-dbt-version: [">=1.9.0", "<2.0.0"]
+
+models:
+  breakout:
+    staging:
+      +materialized: view
+      +schema: silver
+    intermediate:
+      +materialized: view
+      +schema: silver
+    marts:
+      +materialized: table
+      +schema: gold
+
+snapshots:
+  breakout:
+    +target_schema: silver
+
+seeds:
+  breakout:
+    +schema: reference
+    +quote_columns: false

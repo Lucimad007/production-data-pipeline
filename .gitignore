@@ -231,5 +231,8 @@ data/*.sqlite
 dbt_project/target/
 dbt_project/dbt_packages/
 dbt_project/logs/
+.tmp/
 .pytest_cache/
 .mypy_cache/
+
+dbt_project/.user.yml
