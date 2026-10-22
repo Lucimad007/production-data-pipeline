@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 import structlog
@@ -28,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--max-comments", type=int, help="Comments per video")
 
     sub.add_parser("status", help="Show bronze row counts and quota usage")
+    sub.add_parser("build", help="Run dbt build against the local lakehouse")
 
     return parser
 
@@ -69,6 +71,35 @@ def run_ingest(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def run_build(settings: Settings) -> int:
+    """Run dbt with absolute lakehouse paths.
+
+    DuckLake stores the data path in its catalog and rejects a relative path
+    that resolves to the same directory but does not match the stored string.
+    The CLI is the supported entry point because it normalizes the paths first.
+    """
+    os.environ["BREAKOUT_DUCKDB"] = str(settings.duckdb_path.resolve()).replace("\\", "/")
+    os.environ["BREAKOUT_DUCKLAKE_CATALOG"] = str(
+        settings.ducklake_catalog.resolve()
+    ).replace("\\", "/")
+    os.environ["BREAKOUT_DUCKLAKE_DATA"] = str(settings.ducklake_data.resolve()).replace(
+        "\\", "/"
+    )
+
+    from dbt.cli.main import dbtRunner
+
+    result = dbtRunner().invoke(
+        [
+            "build",
+            "--project-dir",
+            str(settings.dbt_project_dir),
+            "--profiles-dir",
+            str(settings.dbt_profiles_dir),
+        ]
+    )
+    return 0 if result.success else 1
+
+
 def run_status(settings: Settings) -> int:
     with Lakehouse(settings) as lake:
         totals = lake.table_counts()
@@ -98,6 +129,8 @@ def main(argv: list[str] | None = None) -> int:
             return run_ingest(args, settings)
         if args.command == "status":
             return run_status(settings)
+        if args.command == "build":
+            return run_build(settings)
     except QuotaExceeded as exc:
         print(f"Quota budget reached: {exc}", file=sys.stderr)
         return 3
