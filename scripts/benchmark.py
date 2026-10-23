@@ -7,12 +7,15 @@ unrelated systems.
 
 from __future__ import annotations
 
+import argparse
+import os
 import statistics
 import time
 from collections.abc import Callable
 from pathlib import Path
 
 import duckdb
+import psutil
 
 from breakout.config import get_settings
 from breakout.health import evaluate_slos
@@ -36,6 +39,11 @@ def directory_size(path: Path) -> int:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Measure the local Breakout stack")
+    parser.add_argument("--rows", type=int, default=10_000_000, help="Synthetic row count")
+    args = parser.parse_args()
+    rows_label = f"{args.rows / 1_000_000:.0f}M"
+
     settings = get_settings()
     counts = bronze_counts(settings)
     marts = mart_counts(settings)
@@ -58,13 +66,18 @@ def main() -> None:
     }
 
     synthetic = duckdb.connect()
+    process = psutil.Process(os.getpid())
+    rss_before = process.memory_info().rss
+    started = time.perf_counter()
     synthetic.execute(
-        """
+        f"""
         create table synth as
         select i as id, i % 1000 as bucket, random() as value
-        from range(10_000_000) as t(i)
+        from range({args.rows}) as t(i)
         """
     )
+    create_seconds = time.perf_counter() - started
+    rss_delta_mb = (process.memory_info().rss - rss_before) / 1_048_576
 
     def synthetic_scan() -> object:
         return synthetic.execute(
@@ -101,7 +114,11 @@ def main() -> None:
                 )
             )
 
-    rows.append(("Synthetic scan: 10M rows", f"{median_ms(synthetic_scan, repeats=3):.1f} ms"))
+    rows.append((f"Synthetic table creation: {rows_label} rows", f"{create_seconds:.1f} s"))
+    rows.append((f"Synthetic RSS delta: {rows_label} rows", f"{rss_delta_mb:.0f} MB"))
+    rows.append(
+        (f"Synthetic scan: {rows_label} rows", f"{median_ms(synthetic_scan, repeats=3):.1f} ms")
+    )
     rows.append(("SLO evaluation", f"{median_ms(lambda: evaluate_slos(settings), repeats=3):.1f} ms"))
 
     print("| Metric | Value |")

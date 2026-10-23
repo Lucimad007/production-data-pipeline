@@ -43,6 +43,9 @@ Snapshot from 2026-10-23:
 | Warm query: topic performance | 12.3 ms |
 | Warm query: publish timing | 13.5 ms |
 | Synthetic scan: 10M rows, group by 1,000 buckets | 34.6 ms |
+| Synthetic table creation: 100M rows | 4.2 s |
+| Synthetic RSS delta: 100M rows | 2,504 MB |
+| Synthetic scan: 100M rows, group by 1,000 buckets | 308.5 ms |
 | SLO evaluation (10 checks) | 996.7 ms |
 
 ## Methodology
@@ -50,14 +53,15 @@ Snapshot from 2026-10-23:
 - Query timings are the median of 5 runs.
 - **Cold** means a new `Lakehouse` connection: DuckDB opens, loads the DuckLake extension, attaches the catalog, then runs the query. This is what a fresh dashboard query pays.
 - **Warm** means one connection, repeated queries. The dashboard caches query results for 60 seconds, so warm numbers are the steady-state experience.
-- The synthetic scan creates a 10M-row in-memory DuckDB table with `range(10_000_000)` and runs a group-by. It measures scan/aggregate throughput, not DuckLake I/O.
+- The synthetic scans create an in-memory DuckDB table with `range(N)` and run a group-by over 1,000 buckets. They measure scan/aggregate throughput, not DuckLake I/O.
 - `dbt build` includes dbt startup, parsing, seed, snapshot, 6 views, 5 tables, and 24 data tests.
+- The 100M row probe uses about 2.5 GB of resident memory; it is a single-machine scale probe, not a production sizing exercise.
 
 ## Interpretation
 
 - The cold path is dominated by DuckLake attach (~190-330 ms), not by the query. The dashboard's 60-second cache hides that cost after the first load.
 - Warm queries are 12-19 ms, which is fast enough for interactive filtering at this data size.
-- A 10M-row scan in 35 ms is a credible local-DuckDB baseline. It is not a claim about 100M rows or concurrent users.
+- A 10M-row scan in 35 ms and a 100M-row scan in 309 ms are credible local-DuckDB baselines. The 100M probe is in-memory and single-user, not a claim about concurrent production workloads.
 - Local compute cost is **$0**. The YouTube API is free within the daily quota.
 - Snowflake has not been benchmarked yet. The same dbt models are the parity target; see ADR 0004.
 
@@ -65,6 +69,7 @@ Snapshot from 2026-10-23:
 
 ```powershell
 uv run python scripts/benchmark.py
+uv run python scripts/benchmark.py --rows 100000000
 ```
 
 Measure the dbt build separately:

@@ -31,7 +31,8 @@ The build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` 
 | SLO checks | 10 |
 | Quota per 500-video refresh | 41 of 8,000 usable units |
 | DuckLake / raw landing | 2.5 MB / 7.1 MB |
-| Warm dashboard queries | 12–19 ms |
+| Warm dashboard queries | 12–21 ms |
+| Synthetic 100M-row group-by | 0.31 s |
 | dbt build | 10.5 s |
 | Local compute cost | $0 |
 
