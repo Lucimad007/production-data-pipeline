@@ -1,24 +1,51 @@
-# Production data pipeline
+# Breakout: creator growth intelligence
 
-## Breakout: creator growth intelligence (in progress)
-
-Breakout is a local-first lakehouse for public YouTube data. It ingests a channel with quota-aware scheduling, preserves every API response in an immutable raw layer, writes bronze tables to DuckLake, and models creator performance with dbt.
+Breakout is a local-first lakehouse for public YouTube data. It ingests a channel with quota-aware scheduling, preserves every API response in an immutable raw layer, writes bronze tables to DuckLake, models creator performance with dbt, orchestrates the graph in Dagster, and exposes the result through a five-page Streamlit product and a 10-check SLO command.
 
 ```powershell
 uv sync
 uv run breakout ingest --channel AlexHormozi --max-videos 500
 uv run breakout build
 uv run breakout status
+uv run breakout health
 uv run breakout dashboard
 ```
 
-The current build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` snapshot, gold marts for video performance, channel overview, publish timing, topic performance, and snapshot deltas, a Dagster asset graph with checks and a daily schedule, and a Streamlit dashboard.
+The build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` snapshot, gold marts for video performance, channel overview, publish timing, topic performance, and snapshot deltas, a Dagster asset graph with checks and a daily schedule, a Streamlit dashboard, and a shared SLO evaluator.
 
 ![Breakout dashboard](docs/assets/dashboard-overview.png)
 
 ### Dashboard
 
 `uv run breakout dashboard` opens the Streamlit app. Pages: Overview, Video deep dive, Topics, Timing, and Pipeline health. The app reads the local lakehouse; the screenshot above is a snapshot, not a live feed.
+
+### Results (snapshot, 2026-10-23)
+
+| Metric | Value |
+|---|---|
+| Videos analyzed | 507 |
+| Video snapshots | 1,510 |
+| Comments | 423 |
+| dbt models and tests | 37 nodes |
+| Automated tests | 40 |
+| SLO checks | 10 |
+| Quota per 500-video refresh | 41 of 8,000 usable units |
+| DuckLake / raw landing | 2.5 MB / 7.1 MB |
+| Warm dashboard queries | 12–19 ms |
+| dbt build | 10.5 s |
+| Local compute cost | $0 |
+
+### Docs
+
+- [Architecture](docs/architecture.md)
+- [Benchmark](docs/benchmark.md)
+- [ADRs](docs/adr/) — batch vs streaming, DuckLake vs Iceberg, Dagster vs Airflow, DuckDB vs Snowflake, metric registry, raw landing
+- [Runbook](docs/runbook.md)
+- [Postmortem: DuckLake path mismatch](docs/postmortem-001-ducklake-path.md)
+- [3-minute demo script](docs/demo-script.md)
+- [Interview story bank](docs/interview-stories.md)
+- [Resume bullets](docs/resume-bullets.md)
+- [2026 research and 14-day plan](docs/2026-flagship-plan.md)
 
 ### Orchestration
 
@@ -41,7 +68,9 @@ The failure-mode runbook is in `docs/runbook.md`.
 
 The public API exposes current lifetime statistics only. Re-running ingestion appends a new snapshot, but it cannot reconstruct historical view counts. Backfills apply to dbt models over existing bronze data, not to the source.
 
-See `docs/2026-flagship-plan.md` for the research brief, architecture, and 14-day plan, and epic #6 for the workstreams.
+### Status
+
+Core pipeline, marts, orchestration, dashboard, and SLOs are complete. Next: governed metric registry and MCP analyst (#15), synthetic scale benchmark (#13), and Snowflake parity (#16).
 
 The legacy sample pipelines below remain runnable.
 
