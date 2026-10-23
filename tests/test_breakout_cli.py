@@ -28,6 +28,14 @@ def test_health_command() -> None:
     assert args.json is True
 
 
+def test_metrics_commands() -> None:
+    assert build_parser().parse_args(["metrics"]).command == "metrics"
+    args = build_parser().parse_args(["metric", "breakout_rate", "--limit", "5"])
+    assert args.command == "metric"
+    assert args.name == "breakout_rate"
+    assert args.limit == 5
+
+
 def test_ingest_accepts_overrides() -> None:
     args = build_parser().parse_args(
         [
