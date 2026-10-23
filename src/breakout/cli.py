@@ -13,6 +13,7 @@ import structlog
 
 from breakout.config import Settings, get_settings
 from breakout.health import evaluate_slos, failing_checks
+from breakout.metrics import MetricError, list_metrics, query_metric
 from breakout.pipeline import (
     bronze_counts,
     build_models,
@@ -41,6 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("dashboard", help="Launch the Streamlit dashboard")
     health = sub.add_parser("health", help="Evaluate pipeline SLOs")
     health.add_argument("--json", action="store_true", help="Emit JSON")
+    sub.add_parser("metrics", help="List governed metrics")
+    metric = sub.add_parser("metric", help="Query a governed metric")
+    metric.add_argument("name")
+    metric.add_argument("--limit", type=int, default=100)
 
     return parser
 
@@ -87,6 +92,23 @@ def run_status(settings: Settings) -> int:
     return 0
 
 
+def run_metrics() -> int:
+    for metric in list_metrics():
+        print(
+            f"{metric['name']:24} {metric['grain']:10} {metric['description']}"
+        )
+    return 0
+
+
+def run_metric(name: str, limit: int) -> int:
+    frame = query_metric(name, limit=limit)
+    if frame.empty:
+        print("No rows returned.")
+        return 0
+    print(frame.to_string(index=False))
+    return 0
+
+
 def run_health(settings: Settings, as_json: bool) -> int:
     checks = evaluate_slos(settings)
     if as_json:
@@ -124,9 +146,16 @@ def main(argv: list[str] | None = None) -> int:
             return subprocess.call([sys.executable, "-m", "streamlit", "run", str(dashboard)])
         if args.command == "health":
             return run_health(settings, args.json)
+        if args.command == "metrics":
+            return run_metrics()
+        if args.command == "metric":
+            return run_metric(args.name, args.limit)
     except QuotaExceeded as exc:
         print(f"Quota budget reached: {exc}", file=sys.stderr)
         return 3
+    except MetricError as exc:
+        print(f"Metric error: {exc}", file=sys.stderr)
+        return 5
     except YouTubeError as exc:
         print(f"YouTube API error: {exc}", file=sys.stderr)
         return 4

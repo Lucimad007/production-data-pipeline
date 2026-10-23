@@ -1,0 +1,145 @@
+version: 1
+
+metrics:
+  - name: channel_overview
+    description: One row per channel with subscriber, view, engagement, and breakout summary.
+    grain: channel
+    owner: creator-intelligence
+    dimensions: [channel_id]
+    sql: |
+      select
+        channel_id,
+        title,
+        handle,
+        subscriber_count,
+        videos_analyzed,
+        total_views,
+        median_views_per_day,
+        median_engagement_rate,
+        breakout_count,
+        underperformer_count,
+        latest_video_snapshot_at
+      from lake.gold.mart_channel_overview
+    examples:
+      - "Show the channel scorecard."
+      - "How many videos are in the snapshot?"
+
+  - name: breakout_rate
+    description: Share of analyzed videos labeled breakout (score >= 2), with the sample size.
+    grain: channel
+    owner: creator-intelligence
+    dimensions: [channel_id]
+    sql: |
+      select
+        channel_id,
+        count_if(performance_label = 'breakout')::double / count(*) as breakout_rate,
+        count(*) as videos
+      from lake.gold.mart_video_performance
+      group by 1
+    examples:
+      - "What is the breakout rate?"
+      - "How many videos broke out?"
+
+  - name: top_breakouts
+    description: Top 10 videos by age-adjusted breakout score.
+    grain: video
+    owner: creator-intelligence
+    dimensions: [topic, performance_label]
+    sql: |
+      select
+        video_id,
+        title,
+        topic,
+        age_days,
+        view_count,
+        views_per_day,
+        breakout_score,
+        performance_label
+      from lake.gold.mart_video_performance
+      order by breakout_score desc
+      limit 10
+    examples:
+      - "Which videos broke out the most?"
+      - "What are the top 10 videos?"
+
+  - name: topic_performance
+    description: Topic-level performance with sample size, median breakout score, and breakout rate.
+    grain: topic
+    owner: creator-intelligence
+    dimensions: [channel_id, topic]
+    sql: |
+      select
+        channel_id,
+        topic,
+        videos,
+        total_views,
+        median_views_per_day,
+        median_breakout_score,
+        breakout_rate
+      from lake.gold.mart_topic_performance
+      order by median_breakout_score desc
+    examples:
+      - "Which topics perform best?"
+      - "Where is the topic signal?"
+
+  - name: publish_timing
+    description: Publish day/hour cells with at least three videos, ranked by median breakout score.
+    grain: day_hour
+    owner: creator-intelligence
+    dimensions: [channel_id, publish_dow, publish_hour]
+    sql: |
+      select
+        channel_id,
+        publish_dow,
+        publish_hour,
+        videos,
+        median_breakout_score,
+        breakout_rate,
+        median_views_per_day
+      from lake.gold.mart_publish_timing
+      order by median_breakout_score desc
+    examples:
+      - "When should I publish?"
+      - "Which day and hour look strongest?"
+
+  - name: engagement_summary
+    description: Median and average engagement rate across analyzed videos.
+    grain: channel
+    owner: creator-intelligence
+    dimensions: [channel_id]
+    sql: |
+      select
+        channel_id,
+        median(engagement_rate) as median_engagement_rate,
+        avg(engagement_rate) as avg_engagement_rate,
+        count(*) as videos
+      from lake.gold.mart_video_performance
+      group by 1
+    examples:
+      - "What is the median engagement rate?"
+
+  - name: data_freshness
+    description: Latest video snapshot timestamp and total snapshot count.
+    grain: snapshot
+    owner: data-platform
+    dimensions: []
+    sql: |
+      select
+        max(snapshot_at) as latest_snapshot,
+        count(*) as snapshots
+      from lake.bronze.video_snapshots
+    examples:
+      - "How fresh is the data?"
+
+  - name: quarantine_summary
+    description: Number of quarantined API items and the most recent quarantine time.
+    grain: quarantine
+    owner: data-platform
+    dimensions: []
+    sql: |
+      select
+        count(*) as quarantine_count,
+        max(ingested_at) as latest_quarantine_at
+      from lake.bronze.quarantine
+    examples:
+      - "Are there any malformed API records?"
