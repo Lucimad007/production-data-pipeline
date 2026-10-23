@@ -27,8 +27,9 @@ The build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` 
 | Video snapshots | 1,510 |
 | Comments | 423 |
 | dbt models and tests | 37 nodes |
-| Automated tests | 40 |
+| Automated tests | 49 |
 | SLO checks | 10 |
+| Governed metrics | 8 |
 | Quota per 500-video refresh | 41 of 8,000 usable units |
 | DuckLake / raw landing | 2.5 MB / 7.1 MB |
 | Warm dashboard queries | 12–21 ms |
@@ -40,6 +41,7 @@ The build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` 
 
 - [Architecture](docs/architecture.md)
 - [Benchmark](docs/benchmark.md)
+- [Governed metrics and MCP](docs/metrics.md)
 - [Snowflake parity path](docs/snowflake-parity.md)
 - [ADRs](docs/adr/) — batch vs streaming, DuckLake vs Iceberg, Dagster vs Airflow, DuckDB vs Snowflake, metric registry, raw landing
 - [Runbook](docs/runbook.md)
@@ -66,13 +68,30 @@ Malformed API items are written to `lake.bronze.quarantine` instead of being dro
 
 The failure-mode runbook is in `docs/runbook.md`.
 
+### Governed metrics and MCP
+
+`uv run breakout metrics` lists eight owned metrics. `uv run breakout metric breakout_rate` runs one. The same registry is exposed through an MCP server (`uv run breakout-mcp`) with `list_metrics`, `describe_metric`, and `query_metric`. The agent can only execute registered definitions, not raw SQL.
+
+```json
+{
+  "mcpServers": {
+    "breakout": {
+      "command": "uv",
+      "args": ["run", "--directory", "C:/path/to/production-data-pipeline", "python", "-m", "breakout.mcp_server"]
+    }
+  }
+}
+```
+
+See `docs/metrics.md` for the metric list, guardrails, and example flow.
+
 ### Backfills
 
 The public API exposes current lifetime statistics only. Re-running ingestion appends a new snapshot, but it cannot reconstruct historical view counts. Backfills apply to dbt models over existing bronze data, not to the source.
 
 ### Status
 
-Core pipeline, marts, orchestration, dashboard, and SLOs are complete. Next: governed metric registry and MCP analyst (#15), synthetic scale benchmark (#13), and Snowflake parity (#16).
+Core pipeline, marts, orchestration, dashboard, SLOs, the 100M-row scale probe, and the governed metric/MCP layer are complete. Next: RAG and the eval harness (#15), and a credentialed Snowflake parity run (#16).
 
 The legacy sample pipelines below remain runnable.
 
