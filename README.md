@@ -40,6 +40,7 @@ The build includes ingestion, DuckLake bronze, dbt staging, an SCD2 `dim_video` 
 
 - [Architecture](docs/architecture.md)
 - [Benchmark](docs/benchmark.md)
+- [Snowflake parity path](docs/snowflake-parity.md)
 - [ADRs](docs/adr/) — batch vs streaming, DuckLake vs Iceberg, Dagster vs Airflow, DuckDB vs Snowflake, metric registry, raw landing
 - [Runbook](docs/runbook.md)
 - [Postmortem: DuckLake path mismatch](docs/postmortem-001-ducklake-path.md)
