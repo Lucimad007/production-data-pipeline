@@ -68,3 +68,13 @@ jobs:
           BREAKOUT_DUCKLAKE_CATALOG: .tmp/dbt/catalog.sqlite
           BREAKOUT_DUCKLAKE_DATA: .tmp/dbt/lake
         run: uv run dbt build --project-dir dbt_project --profiles-dir dbt_project
+
+      - name: Evaluate SLOs
+        env:
+          DATA_DIR: .tmp/dbt
+          RAW_DIR: .tmp/dbt/raw
+          DUCKDB_PATH: .tmp/dbt/breakout.duckdb
+          DUCKLAKE_CATALOG: .tmp/dbt/catalog.sqlite
+          DUCKLAKE_DATA: .tmp/dbt/lake
+          QUOTA_DB: .tmp/dbt/quota.sqlite
+        run: uv run breakout health

@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import structlog
 
 from breakout.config import Settings, get_settings
+from breakout.health import evaluate_slos, failing_checks
 from breakout.pipeline import (
     bronze_counts,
     build_models,
@@ -36,6 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="Show bronze row counts and quota usage")
     sub.add_parser("build", help="Run dbt build against the local lakehouse")
     sub.add_parser("dashboard", help="Launch the Streamlit dashboard")
+    health = sub.add_parser("health", help="Evaluate pipeline SLOs")
+    health.add_argument("--json", action="store_true", help="Emit JSON")
 
     return parser
 
@@ -61,7 +66,9 @@ def run_ingest(args: argparse.Namespace, settings: Settings) -> int:
     )
 
     print(f"channel={result.channel_title} id={result.channel_id}")
-    print(f"videos={result.videos} comments={result.comments}")
+    print(
+        f"videos={result.videos} comments={result.comments} quarantined={result.quarantined}"
+    )
     print(f"quota_units={result.quota_used}")
     print(f"raw_files={result.raw_files}")
     print("written=" + " ".join(f"{key}:{value}" for key, value in result.written.items()))
@@ -78,6 +85,19 @@ def run_status(settings: Settings) -> int:
     if latest:
         print(f"latest_snapshot={latest}")
     return 0
+
+
+def run_health(settings: Settings, as_json: bool) -> int:
+    checks = evaluate_slos(settings)
+    if as_json:
+        print(json.dumps([asdict(check) for check in checks], indent=2))
+    else:
+        for check in checks:
+            status = "PASS" if check.passed else ("WARN" if check.severity == "warn" else "FAIL")
+            print(
+                f"{status:4} {check.name:26} observed={check.observed} target={check.target}"
+            )
+    return 1 if failing_checks(checks) else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -102,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "dashboard":
             dashboard = Path(__file__).with_name("dashboard.py")
             return subprocess.call([sys.executable, "-m", "streamlit", "run", str(dashboard)])
+        if args.command == "health":
+            return run_health(settings, args.json)
     except QuotaExceeded as exc:
         print(f"Quota budget reached: {exc}", file=sys.stderr)
         return 3

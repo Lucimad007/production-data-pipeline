@@ -21,7 +21,7 @@ from breakout.storage import Lakehouse
 from breakout.youtube import Collection
 
 ROOT = Path(".tmp/dbt")
-SNAPSHOT_AT = datetime(2026, 10, 19, 13, 0, tzinfo=UTC)
+SNAPSHOT_AT = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
 
 
 def build_collection() -> Collection:

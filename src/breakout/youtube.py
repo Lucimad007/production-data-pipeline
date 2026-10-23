@@ -116,10 +116,20 @@ class QuotaLedger:
             connection.commit()
 
 
+@dataclass(frozen=True)
+class QuarantinedItem:
+    endpoint: str
+    item_index: int
+    item_id: str | None
+    reason: str
+    payload_hash: str
+
+
 @dataclass
 class VideoBatch:
     videos: list[Video] = field(default_factory=list)
     snapshots: list[VideoSnapshot] = field(default_factory=list)
+    rejected: list[QuarantinedItem] = field(default_factory=list)
 
 
 @dataclass
@@ -131,6 +141,7 @@ class Collection:
     comments: list[Comment]
     quota_used: int
     envelopes: list[ApiEnvelope] = field(default_factory=list)
+    quarantined: list[QuarantinedItem] = field(default_factory=list)
 
 
 def _error_detail(payload: dict[str, Any]) -> str:
@@ -309,11 +320,24 @@ class YouTubeClient:
                 maxResults=len(chunk),
             )
             fetched_at = envelope.fetched_at
-            for item in envelope.payload.get("items", []):
+            for index, item in enumerate(envelope.payload.get("items", [])):
                 try:
                     video = Video.from_api(item)
-                except ValueError:
-                    log.warning("youtube.video_parse_skipped", item_id=item.get("id"))
+                except ValueError as exc:
+                    batch.rejected.append(
+                        QuarantinedItem(
+                            endpoint="videos",
+                            item_index=index,
+                            item_id=item.get("id"),
+                            reason=str(exc),
+                            payload_hash=envelope.payload_hash,
+                        )
+                    )
+                    log.warning(
+                        "youtube.video_quarantined",
+                        item_id=item.get("id"),
+                        reason=str(exc),
+                    )
                     continue
                 stats = item.get("statistics", {})
                 batch.videos.append(video)
@@ -399,6 +423,7 @@ class YouTubeClient:
             comments=comments,
             quota_used=self.ledger.status().used - started_used,
             envelopes=self.envelopes[started_envelopes:],
+            quarantined=batch.rejected,
         )
 
 

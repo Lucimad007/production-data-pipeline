@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from breakout.config import PROJECT_ROOT, get_settings
+from breakout.health import evaluate_slos
 from breakout.pipeline import bronze_counts, latest_snapshot, quota_status
 from breakout.storage import Lakehouse
 
@@ -93,6 +94,7 @@ section[data-testid="stSidebar"] [role="radiogroup"] > div[data-selected="true"]
 .check-status {{ font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .08em; padding: .18rem .38rem; border: 1px solid var(--line); }}
 .check-pass {{ color: {GREEN}; border-color: rgba(30,122,70,.35); background: rgba(30,122,70,.08); }}
 .check-fail {{ color: {CORAL}; border-color: rgba(255,90,54,.35); background: rgba(255,90,54,.08); }}
+.check-warn {{ color: #9A6B00; border-color: rgba(154,107,0,.35); background: rgba(154,107,0,.08); }}
 .check-name {{ flex: 1; }}
 .check-observed {{ font-family: 'IBM Plex Mono', monospace; font-size: .68rem; color: var(--muted); }}
 .section-title {{ font-family: 'Space Grotesk', sans-serif; font-size: 1.05rem; font-weight: 600; margin: 1.4rem 0 .5rem 0; }}
@@ -753,64 +755,19 @@ def render_health() -> None:
     )
 
     st.markdown('<div class="section-title">Live checks</div>', unsafe_allow_html=True)
-    checks: list[tuple[str, str, str, bool]] = []
-    checks.append(("Bronze videos present", f"{bronze['videos']:,}", "> 0", bronze["videos"] > 0))
-    checks.append(("Snapshots present", f"{bronze['video_snapshots']:,}", "> 0", bronze["video_snapshots"] > 0))
-    checks.append(("Comments present", f"{bronze['comments']:,}", "> 0", bronze["comments"] > 0))
-    checks.append(
-        (
-            "Freshness under 24h",
-            f"{latest_age:.1f}h" if latest_age is not None else "—",
-            "< 24h",
-            latest_age is not None and latest_age < 24,
+    for check in evaluate_slos(settings):
+        status = "PASS" if check.passed else ("WARN" if check.severity == "warn" else "FAIL")
+        css = (
+            "check-pass"
+            if check.passed
+            else ("check-warn" if check.severity == "warn" else "check-fail")
         )
-    )
-    checks.append(
-        (
-            "Quota under budget",
-            f"{quota.used}/{quota.budget}",
-            "≤ budget",
-            quota.used <= quota.budget,
-        )
-    )
-
-    try:
-        duplicates = query_df(
-            "select count(*) - count(distinct video_id) as duplicates from lake.gold.mart_video_performance"
-        ).iloc[0]["duplicates"]
-        checks.append(("Mart keys unique", f"{int(duplicates)} duplicates", "0", int(duplicates) == 0))
-        null_scores = query_df(
-            "select count(*) as nulls from lake.gold.mart_video_performance where breakout_score is null"
-        ).iloc[0]["nulls"]
-        checks.append(("Breakout scores present", f"{int(null_scores)} nulls", "0", int(null_scores) == 0))
-        coverage = query_df(
-            """
-            select
-              (select count(*) from lake.gold.mart_video_performance) as mart_rows,
-              (select count(*) from lake.bronze.videos) as bronze_rows
-            """
-        ).iloc[0]
-        checks.append(
-            (
-                "Mart coverage",
-                f"{int(coverage['mart_rows']):,}/{int(coverage['bronze_rows']):,}",
-                "≈ 100%",
-                int(coverage["bronze_rows"]) > 0
-                and int(coverage["mart_rows"]) / int(coverage["bronze_rows"]) > 0.95,
-            )
-        )
-    except Exception as exc:  # noqa: BLE001 - health page must render even when marts are missing
-        checks.append(("Mart checks available", type(exc).__name__, "no error", False))
-
-    for name, observed, threshold, passed in checks:
-        status = "PASS" if passed else "FAIL"
-        css = "check-pass" if passed else "check-fail"
         st.markdown(
             f"""
             <div class="check-row">
               <span class="check-status {css}">{status}</span>
-              <span class="check-name">{safe(name)}</span>
-              <span class="check-observed">{safe(observed)} · target {safe(threshold)}</span>
+              <span class="check-name">{safe(check.name)}</span>
+              <span class="check-observed">{safe(check.observed)} · target {safe(check.target)}</span>
             </div>
             """,
             unsafe_allow_html=True,

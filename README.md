@@ -29,6 +29,14 @@ uv run dagster dev -m breakout.definitions
 
 Open `http://localhost:3000`. The `daily_refresh` job runs ingestion, dbt, and the pipeline health asset at 06:00 UTC. Asset checks cover bronze rows, quota budget, and non-empty marts.
 
+### Reliability
+
+`uv run breakout health` evaluates freshness, quota, quarantine, mart coverage, key uniqueness, null scores, and dbt failures. It exits non-zero on error-severity failures and supports `--json` for automation.
+
+Malformed API items are written to `lake.bronze.quarantine` instead of being dropped silently. The raw response is always preserved, so a parser fix can replay without another API call.
+
+The failure-mode runbook is in `docs/runbook.md`.
+
 ### Backfills
 
 The public API exposes current lifetime statistics only. Re-running ingestion appends a new snapshot, but it cannot reconstruct historical view counts. Backfills apply to dbt models over existing bronze data, not to the source.
