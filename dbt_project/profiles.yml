@@ -15,3 +15,15 @@ breakout:
       database: lake
       schema: silver
       threads: 4
+
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'SILVER') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      threads: 4
+      query_tag: breakout_dbt

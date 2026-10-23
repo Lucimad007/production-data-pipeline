@@ -27,12 +27,12 @@ select
     previous_view_count,
     previous_snapshot_at,
     view_count - previous_view_count as delta_views,
-    date_diff('minute', previous_snapshot_at, snapshot_at) / 60.0
+    {{ date_diff_compat('minute', 'previous_snapshot_at', 'snapshot_at') }} / 60.0
         as hours_since_previous,
     case
         when previous_view_count is not null
-         and date_diff('minute', previous_snapshot_at, snapshot_at) > 0
+         and {{ date_diff_compat('minute', 'previous_snapshot_at', 'snapshot_at') }} > 0
             then (view_count - previous_view_count)::double
-                / (date_diff('minute', previous_snapshot_at, snapshot_at) / 60.0)
+                / ({{ date_diff_compat('minute', 'previous_snapshot_at', 'snapshot_at') }} / 60.0)
     end as views_per_hour
 from history

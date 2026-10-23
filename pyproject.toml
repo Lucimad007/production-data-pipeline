@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-snowflake = ["snowflake-snowpark-python>=1.24"]
+snowflake = ["dbt-snowflake>=1.9", "snowflake-snowpark-python>=1.24"]
 
 [project.scripts]
 breakout = "breakout.cli:main"

@@ -20,7 +20,7 @@ matches as (
         row_number() over (partition by v.video_id order by r.priority) as row_num
     from videos v
     join rules r
-        on regexp_matches(v.search_text, r.pattern)
+        on {{ regexp_matches_compat('v.search_text', 'r.pattern') }}
 )
 
 select

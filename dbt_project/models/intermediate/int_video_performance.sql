@@ -26,20 +26,20 @@ base as (
         s.view_count,
         s.like_count,
         s.comment_count,
-        date_diff('day', v.published_at, s.snapshot_at) as age_days,
-        date_diff('hour', v.published_at, s.snapshot_at) as age_hours,
+        {{ date_diff_compat('day', 'v.published_at', 's.snapshot_at') }} as age_days,
+        {{ date_diff_compat('hour', 'v.published_at', 's.snapshot_at') }} as age_hours,
         case
-            when date_diff('day', v.published_at, s.snapshot_at) <= 7 then '0-7'
-            when date_diff('day', v.published_at, s.snapshot_at) <= 30 then '8-30'
-            when date_diff('day', v.published_at, s.snapshot_at) <= 90 then '31-90'
-            when date_diff('day', v.published_at, s.snapshot_at) <= 365 then '91-365'
+            when {{ date_diff_compat('day', 'v.published_at', 's.snapshot_at') }} <= 7 then '0-7'
+            when {{ date_diff_compat('day', 'v.published_at', 's.snapshot_at') }} <= 30 then '8-30'
+            when {{ date_diff_compat('day', 'v.published_at', 's.snapshot_at') }} <= 90 then '31-90'
+            when {{ date_diff_compat('day', 'v.published_at', 's.snapshot_at') }} <= 365 then '91-365'
             else '365+'
         end as age_bucket,
         ln(1 + greatest(coalesce(s.view_count, 0), 0)) as log_views,
         coalesce(s.view_count, 0)::double
-            / greatest(date_diff('day', v.published_at, s.snapshot_at), 1) as views_per_day,
+            / greatest({{ date_diff_compat('day', 'v.published_at', 's.snapshot_at') }}, 1) as views_per_day,
         coalesce(s.view_count, 0)::double
-            / greatest(date_diff('hour', v.published_at, s.snapshot_at), 1) as views_per_hour,
+            / greatest({{ date_diff_compat('hour', 'v.published_at', 's.snapshot_at') }}, 1) as views_per_hour,
         case
             when coalesce(s.view_count, 0) > 0
                 then (coalesce(s.like_count, 0) + coalesce(s.comment_count, 0))::double
